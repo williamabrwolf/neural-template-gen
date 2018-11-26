@@ -1,0 +1,33 @@
+2018-11-26 Meeting Notes
+Will, Ethan, Kilian
+
+Summary:
+-Text generation is a joint model over latent states z and previous text y
+-MAP estimate is max_z p(z|y)
+    -This is learned from training samples, from text bios and HSMM model get templates
+-Top 100 templates is a whitelist based on which occur most frequently in the training set. only choose from these templates for test generation
+-For Rome data, replace record with CSRS intent SRU output from CSRS model
+-For Rome data, which latent states correspond to dialogue actions, 
+    -Replace record with agent summaries? e.g. "agent" vs "customer" states, what words correspond to what dialog act
+-Paper detail: name_1, name_2, etc. every value is only 1 word, since we are not slot filling we dont need to do this in our templates/purity/etc
+-Put meeting minutes/documentation on the github repo
+
+Next Steps (Decreasing order of importance):
+-Eval bleu score, perplexity on the trained model
+-Document code and add comments (e.g. docstrings) so we can all figure out what's going on
+-Run on Rome data where "record" is {empty, CSRS SRU embedding, agent/customer one-hot}, 
+-Compare to sequential LDA, eval whether states are more interpretable
+-Begin writing proposal/doc (github)
+-Use current client language models
+
+
+Down the line:
+-Autoencoder architecture? for training or evaluation?
+train vs src_train
+-Do something better then summarize with the top 100 most common templates
+-Cluster with a mutual information, information gain objective? e.g. d(y, z) = p(y|z) - p(y)
+-Optimize training/clustering of states with purity? Add diversity?
+-Annotation since we don't have records
+
+
+
