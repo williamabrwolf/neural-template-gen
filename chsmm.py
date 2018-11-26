@@ -870,64 +870,98 @@ parser.add_argument('-log_interval', type=int, default=200,
 parser.add_argument('-save', type=str, default='', help='path to save the final model')
 parser.add_argument('-load', type=str, default='', help='path to saved model')
 parser.add_argument('-test', action='store_true', help='use test data')
+# TODO: ?
 parser.add_argument('-thresh', type=int, default=9, help='prune if occurs <= thresh')
 parser.add_argument('-max_mbs_per_epoch', type=int, default=35000, help='max minibatches per epoch')
-
 parser.add_argument('-emb_size', type=int, default=100, help='size of word embeddings')
 parser.add_argument('-hid_size', type=int, default=100, help='size of rnn hidden state')
 parser.add_argument('-layers', type=int, default=1, help='num rnn layers')
+# TODO: ?
 parser.add_argument('-A_dim', type=int, default=64,
                     help='dim of factors if factoring transition matrix')
+# TODO: ?
 parser.add_argument('-cond_A_dim', type=int, default=32,
                     help='dim of factors if factoring transition matrix')
+# TODO: ?
 parser.add_argument('-smaller_cond_dim', type=int, default=64,
                     help='dim of thing we feed into linear to get transitions')
+# TODO: ?
 parser.add_argument('-yes_self_trans', action='store_true', help='')
+# TODO: ?
 parser.add_argument('-mlpinp', action='store_true', help='')
+# NOTE: MLP hidden size is this value times the `emb_size`
 parser.add_argument('-mlp_sz_mult', type=int, default=2, help='mlp hidsz is this x emb_size')
+# TODO: ?
 parser.add_argument('-max_pool', action='store_true', help='for word-fields')
-
+# TODO: ?
 parser.add_argument('-constr_tr_epochs', type=int, default=100, help='')
+# TODO: ?
+# TODO: Number of autoregressive epochs?
 parser.add_argument('-no_ar_epochs', type=int, default=100, help='')
 
+# TODO: Autogression on the words?
 parser.add_argument('-word_ar', action='store_true', help='')
+# TODO: Autogression after decay?
 parser.add_argument('-ar_after_decay', action='store_true', help='')
+# NOTE: No autogression for the viterbi algorithm
 parser.add_argument('-no_ar_for_vit', action='store_true', help='')
+# TODO: ?
 parser.add_argument('-fine_tune', action='store_true', help='only train ar rnn')
 
 parser.add_argument('-dropout', type=float, default=0.3, help='dropout')
 parser.add_argument('-emb_drop', action='store_true', help='dropout on embeddings')
+# TODO: ?
 parser.add_argument('-lse_obj', action='store_true', help='')
 parser.add_argument('-sep_attn', action='store_true', help='')
 parser.add_argument('-max_seqlen', type=int, default=70, help='')
 
 parser.add_argument('-K', type=int, default=10, help='number of states')
+# TODO: ?
 parser.add_argument('-Kmul', type=int, default=1, help='number of states multiplier')
+# TODO: ? the prior on the segment lengths, kinda thing?
 parser.add_argument('-L', type=int, default=10, help='max segment length')
+# TODO: uniform length... ps?
 parser.add_argument('-unif_lenps', action='store_true', help='')
 parser.add_argument('-one_rnn', action='store_true', help='')
 
+# TODO: interval for what?
 parser.add_argument('-initrange', type=float, default=0.1, help='uniform init interval')
 parser.add_argument('-lr', type=float, default=1.0, help='initial learning rate')
 parser.add_argument('-lr_decay', type=float, default=0.5, help='learning rate decay')
 parser.add_argument('-optim', type=str, default="sgd", help='optimization algorithm')
+# TODO: ? onmt?
 parser.add_argument('-onmt_decay', action='store_true', help='')
+# TODO: 5 means what?
 parser.add_argument('-clip', type=float, default=5, help='gradient clipping')
+# TODO: ?
 parser.add_argument('-interactive', action='store_true', help='')
+# TODO: ?
 parser.add_argument('-label_train', action='store_true', help='')
+# NOTE: generate from file
 parser.add_argument('-gen_from_fi', type=str, default='', help='')
 parser.add_argument('-verbose', action='store_true', help='')
+# TODO: is this used when restarting from an existing experiment?
 parser.add_argument('-prev_loss', type=float, default=None, help='')
+# TODO: is this used when restarting from an existing experiment?
 parser.add_argument('-best_loss', type=float, default=None, help='')
 
 parser.add_argument('-tagged_fi', type=str, default='', help='path to tagged fi')
+# NOTE: number of templates for generation
+# TODO: presumably these are all pulled out of the segmented file?
 parser.add_argument('-ntemplates', type=int, default=200, help='num templates for gen')
+# NOTE: beam size
 parser.add_argument('-beamsz', type=int, default=1, help='')
+# TODO: weights used in generation?
 parser.add_argument('-gen_wts', type=str, default='1,1', help='')
+# TODO: minimum tokens to generate?
 parser.add_argument('-min_gen_tokes', type=int, default=0, help='')
+# TODO: minimum states to generate? do we actually generate states?
 parser.add_argument('-min_gen_states', type=int, default=0, help='')
+# TODO: generate on validation set?
 parser.add_argument('-gen_on_valid', action='store_true', help='')
+# TODO: ?
 parser.add_argument('-align', action='store_true', help='')
+# TODO: ?
 parser.add_argument('-wid_workers', type=str, default='', help='')
 
 if __name__ == "__main__":
