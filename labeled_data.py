@@ -119,12 +119,13 @@ class SentenceCorpus(object):
         3. Maintain a Counter called `tgt_voc`.
 
             - Update with all of the values in `fields`
-            - Update with all of the keys in `fields`
-            - Update with all of the indices in `fields` (1, 2, 3, 4) in the above example
+            - Update with all of the string keys in `fields` ('_customerrating' in the above example)
+            - Update with all of the indices in `fields` ((1, 2, 3, 4) in the above example)
 
         4. Maintain a list called `linewords`.
 
-            - Append a `set` of the values for each line to `linewords`, excluding punctuation
+            - Append a `set` of the values in `fields` for each line to `linewords`,
+            excluding punctuation
 
         5. Maintain a Counter called `genwords` for keep tracking of the tokens we're permitted to
             generate.
@@ -194,14 +195,163 @@ class SentenceCorpus(object):
         # TODO: I don't know what this 4 is
         assert self.dictionary.idx2word[4 + len(self.genset) - 1] in self.genset
         assert self.dictionary.idx2word[4 + len(self.genset)] not in self.genset
-        self.dictionary.add_word("<ncf1>", train=True)
-        self.dictionary.add_word("<ncf2>", train=True)
-        self.dictionary.add_word("<ncf3>", train=True)
+        self.dictionary.add_word("<ncf1>", train=True)  # `ncf` = "not copied from"
+        self.dictionary.add_word("<ncf2>", train=True)  # `ncf` = "not copied from"
+        self.dictionary.add_word("<ncf3>", train=True)  # `ncf` = "not copied from"
         self.dictionary.add_word("<go>", train=True)
         self.dictionary.add_word("<stop>", train=True)
 
 
     def tokenize(self, path, src_path, add_to_dict=False, add_bos=False, add_eos=False):
+        """
+        ASAPP DOCSTRING:
+
+        This method does a few things:
+
+        1. Iterate through entries in the source (the structured input), and compute:
+
+        `feats`:
+
+            Converting this source into `fields`:
+
+            (Pdb) fields
+
+            fields = {
+                ('_customerrating', 1): '5',
+                ('_customerrating', 2): 'out',
+                ('_customerrating', 3): 'of',
+                ('_customerrating', 4): '5',
+                ('_near', 1): 'Caf\xc3\xa9',
+                ('_near', 2): 'Adriatic',
+                ('_name', 1): 'The',
+                ('_name', 2): 'Vaults',
+                ('_priceRange', 1): 'more',
+                ('_priceRange', 2): 'than',
+                ('_priceRange', 3): '\xc2\xa3',
+                ('_priceRange', 4): '30',
+                ('_eatType', 1): 'pub'
+            }
+
+            For each `word` in the values of `fields`, compute:
+
+            1. The global numerical index of the string in the key (e.g. '_customerrating')
+            2. The global numerical index of the idx in the key (e.g. 1)
+            3. The global numerical index of the `word` itself
+
+            To `feats`, append a list of these 3 items.
+
+            The list of individual `feats`--one for each record in the input--are put into
+            a final list called:
+
+                `src_feats`
+
+        `wrd2idxs`:
+
+            For each `word` in the values of `fields`, compute:
+
+            The index *in the iteration* at which it occurs.
+
+            Were we to iterate in the order of the sentence, this would just be the
+            index of the word in this sentence (where words can have multiple indices,
+            if they appear more than once!).
+
+            As is, it's the index wherein we iterate in unsorted order, namely via
+            iteration through the values of a dict.
+
+            To `wrd2idxs[word]`, append this index. We append, because again, a given
+            word can have more than one index if it occurs more than once in the values
+            for this record's `fields`.
+
+        `wrd2fields`:
+
+            For each `word` in the values of `fields`, compute:
+
+            `(word global index, key global index, idx global index, cheatfeat index)`
+
+            The first three are plucked from its features, which we appended to `feats`, above.
+
+            The last item is defined as:
+
+            "Is this the final value you are procesing for a given key?
+
+            For example, _customerrating has 4 keys:
+
+            ('_customerrating', 1): '5',
+            ('_customerrating', 2): 'out',
+            ('_customerrating', 3): 'of',
+            ('_customerrating', 4): '5',
+
+            This item asks: are we processing the 4th?
+
+            `cheatfeat = w2i["<stop>"] if fld_cntr[k] == idx else w2i["<go>"]`
+
+        2. Iterate through words in the target (the natural language output), and compute:
+
+        `sent`:
+
+            A list of the global numerical indices for each word,
+
+            *but only for the words that are in the `self.genset`, i.e. did not
+            occur in the values of its corresponding `fields` (the dict that houses
+            its structured input data).*
+
+            If this word is not in `self.genset`, i.e. it was "seen before", we use the
+
+            global numerical index of "<unk>".
+
+        `copied`:
+
+            A list of:
+
+                If:
+
+                    The word was in the values of `fields`, i.e.
+
+                        - It was "seen before"
+                        - It is not in `self.genset`
+
+                Then: append the `wrd2idxs` index of this word.
+
+
+                Else: Use -1 as the index.
+
+            Almost conversely, this is maintaining metadata about those words that were "copied."
+
+        `insent`:
+
+            A list of:
+
+                If:
+
+                    The word was in the values of `fields`, i.e.
+
+                        - It was "seen before"
+                        - It is not in `self.genset`
+
+                Then: the `wrd2fields` list for this word.
+
+
+                Else: [global numerical index for word, w2i["<ncf1>"], w2i["<ncf2>"], w2i["<ncf3>"]]
+
+                ...where the latter 3 elements are constants.
+
+            This should similarly be considered metadata about the items that were copied.
+
+        `labelist`:
+
+            A newly tuple-ified span annotation, e.g.
+
+            [(0, 2, 0), (2, 3, 1), (4, 6, 6), (11, 12, 7), (17, 18, 7), (18, 19, 8)]
+
+        The final data structures containing the previous 4 structures, for each of the words
+        in the natural language output, are named:
+
+            `sents, copylocs, inps, labels`
+
+        :return: sents, labels, src_feats, copylocs, inps
+
+        """
+        
         """Assumes fmt is sentence|||s1,e1,k1 s2,e2,k2 ...."""
         assert os.path.exists(path)
 
@@ -215,18 +365,37 @@ class SentenceCorpus(object):
                     fields = get_wikibio_poswrds(tokes) #key, pos -> wrd
                 else:
                     fields = get_e2e_poswrds(tokes) # key, pos -> wrd
+
                 # wrd2things will be unordered
                 feats, wrd2idxs, wrd2fields = [], defaultdict(list), defaultdict(list)
                 # get total number of words per field
                 fld_cntr = Counter([key for key, _ in fields])
                 for (k, idx), wrd in fields.iteritems():
                     if k in w2i:
+                        """
+                        (Pdb) k
+                        '_customerrating'
+                        (Pdb) idx
+                        1
+                        (Pdb) wrd
+                        '5'
+                        """
                         featrow = [self.dictionary.add_word(k, add_to_dict),
                                    self.dictionary.add_word(idx, add_to_dict),
                                    self.dictionary.add_word(wrd, add_to_dict)]
+                        """
+                        (Pdb) featrow
+                        [861, 780, 400]
+                        """
+
                         wrd2idxs[wrd].append(len(feats))
+
                         #nflds = self.dictionary.add_word(fld_cntr[k], add_to_dict)
+
                         cheatfeat = w2i["<stop>"] if fld_cntr[k] == idx else w2i["<go>"]
+                        """
+                        Append: (word global index, key global index, idx global index, cheatfeat index)
+                        """
                         wrd2fields[wrd].append((featrow[2], featrow[0], featrow[1], cheatfeat))
                         feats.append(featrow)
                 src_wrd2idxs.append(wrd2idxs)
@@ -247,26 +416,61 @@ class SentenceCorpus(object):
                     sent.append(self.dictionary.add_word('<bos>', True))
                 for word in words:
                     # sent is just used for targets; we have separate inputs
+                    """
+                    If we didn't omit this previously, i.e. *it does not appear in the values
+                    of its structured-input.*
+                    """
                     if word in self.genset:
                         sent.append(w2i[word])
                     else:
+                        """
+                        This word did appear in its corresponding `fields` values; we replace
+                        it with "<unk>".
+                        """
                         sent.append(w2i["<unk>"])
                     if word not in punctuation and word in src_wrd2idxs[tgtline]:
+                        """
+                        The indices of the words that were "copied over" from input to output.
+                        """
                         copied.append(src_wrd2idxs[tgtline][word])
+                        """
+                        You'll have multiple 4-tuples if this word appeared more that once in
+                        the structured input.
+                        """
                         winps = [[widx, kidx, idxidx, nidx]
                                  for widx, kidx, idxidx, nidx in src_wrd2fields[tgtline][word]]
                         insent.append(winps)
+                        """
+                        In the genset, i.e. not in the corresponding structured input's values.
+                        """
                     else:
                         #assert sent[-1] < self.ngen_types
                         copied.append([-1])
                          # 1 x wrd, tokennum, totalnum
                         #insent.append([[sent[-1], w2i["<ncf1>"], w2i["<ncf2>"]]])
+                        """
+                        sent[-1] gives the global word index for this word.
+                        """
                         insent.append([[sent[-1], w2i["<ncf1>"], w2i["<ncf2>"], w2i["<ncf3>"]]])
                 #sent.extend([self.dictionary.add_word(word, add_to_dict) for word in words])
                 if add_eos:
                     sent.append(self.dictionary.add_word('<eos>', True))
                 labetups = [tupstr.split(',') for tupstr in spanlabels.split()]
                 labelist = [(int(tup[0]), int(tup[1]), int(tup[2])) for tup in labetups]
+
+                """
+                (Pdb) sent
+                [503, 0, 471, 144, 407, 0, 142, 450, 400, 755, 310, 136, 126, 391, 399, 772, 0, 136, 255]
+
+                (Pdb) labelist
+                [(0, 2, 0), (2, 3, 1), (4, 6, 6), (11, 12, 7), (17, 18, 7), (18, 19, 8)]
+
+                (Pdb) copied
+                [[7], [2], [12], [-1], [3], [1], [-1], [-1], [0, 5], [-1], [-1], [-1], [-1], [-1], [-1], [10], [4], [-1], [-1]]
+
+                (Pdb) insent
+                [[[503, 855, 780, 870]], [[840, 855, 781, 871]], [[471, 865, 780, 871]], [[144, 867, 868, 869]], [[407, 850, 780, 870]], [[820, 850, 781, 871]], [[142, 867, 868, 869]], [[450, 867, 868, 869]], [[400, 861, 780, 870], [400, 861, 783, 871]], [[755, 867, 868, 869]], [[310, 867, 868, 869]], [[136, 867, 868, 869]], [[126, 867, 868, 869]], [[391, 867, 868, 869]], [[399, 867, 868, 869]], [[772, 814, 782, 870]], [[854, 814, 783, 871]], [[136, 867, 868, 869]], [[255, 867, 868, 869]]]
+                """
                 sents.append(sent)
                 labels.append(labelist)
                 copylocs.append(copied)
