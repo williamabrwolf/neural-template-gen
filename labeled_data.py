@@ -51,6 +51,8 @@ class SentenceCorpus(object):
 
         if thresh > 0:
             self.get_vocabs(os.path.join(path, 'train.txt'), train_src, thresh=thresh)
+            # NOTE: `ngen_types` is the size of the vocab from which we're permitted to generate
+            # (excluding, notably, the things from src_path, e.g. data/e2e_aligned/src_train.txt)
             self.ngen_types = len(self.genset) + 4 # assuming didn't encounter any special tokens
             add_to_dict = False
         else:
@@ -188,6 +190,8 @@ class SentenceCorpus(object):
         tgtkeys.sort(key=lambda x: -(x in self.genset))
         self.dictionary.bulk_add(tgtkeys)
         # make sure we did everything right (assuming didn't encounter any special tokens)
+
+        # TODO: I don't know what this 4 is
         assert self.dictionary.idx2word[4 + len(self.genset) - 1] in self.genset
         assert self.dictionary.idx2word[4 + len(self.genset)] not in self.genset
         self.dictionary.add_word("<ncf1>", train=True)
