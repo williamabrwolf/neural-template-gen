@@ -101,7 +101,7 @@ time python chsmm.py \
 
 - Ran:
 
-To train a dummy model locally (and step through the code):
+To train a dummy model remotely (and step through the code):
 
 ```
 time python chsmm.py \
@@ -125,5 +125,6 @@ time python chsmm.py \
   -mlpinp \
   -onmt_decay \
   -seed 1818 \
+  -cuda \
   -save models/DUMMY-chsmm-e2e-300-55-5.pt
 ```

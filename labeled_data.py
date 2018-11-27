@@ -82,6 +82,66 @@ class SentenceCorpus(object):
 
 
     def get_vocabs(self, path, src_path, thresh=2):
+        """
+        ASAPP DOCSTRING:
+
+        E2E example:
+
+        Example parameters:
+
+            path: data/e2e_aligned/train.txt
+            src_path: data/e2e_aligned/src_train.txt
+            thresh: 9
+
+        1. Iterate through each line in src_path (data/e2e_aligned/src_train.txt),
+            split the tokens. Example:
+
+        tokes: ['__start_name__', 'The', 'Vaults', '__end_name__', '__start_eatType__', 'pub', '__end_eatType__', '__start_priceRange__', 'more', 'than', '\xc2\xa3', '30', '__end_priceRange__', '__start_customerrating__', '5', 'out', 'of', '5', '__end_customerrating__', '__start_near__', 'Caf\xc3\xa9', 'Adriatic', '__end_near__']
+
+        2. The tokens in `tokes` have start and end delimiters. Then, we add one (key, value) pair
+        for each token in the value.
+
+        For example, `'__start_customerrating__', '5', 'out', 'of', '5', '__end_customerrating__',`
+        translates to:
+
+        ```
+        {
+            ('_customerrating', 1): '5',
+            ('_customerrating', 2): 'out',
+            ('_customerrating', 3): 'of',
+            ('_customerrating', 4): '5',
+        }
+
+        in the dict `fields`. Note that it is 1-indexed.
+
+        3. Maintain a Counter called `tgt_voc`.
+
+            - Update with all of the values in `fields`
+            - Update with all of the keys in `fields`
+            - Update with all of the indices in `fields` (1, 2, 3, 4) in the above example
+
+        4. Maintain a list called `linewords`.
+
+            - Append a `set` of the values for each line to `linewords`, excluding punctuation
+
+        5. Maintain a Counter called `genwords` for keep tracking of the tokens we're permitted to
+            generate.
+
+        6. Read from `path` (data/e2e_aligned/train.txt), and update `genwords` with all `words` that
+            don't appear in the *corresponding line's* `linewords` set. (see Step 4).
+
+        Presumably we do this to ensure we can't generate a token that was used in... src_train.
+
+        7. Add all `words` to `tgt_voc`.
+
+        8. From both `tgt_voc` and `genwords`, delete all keys that occur <= `thresh` number of times.
+
+        9. Get all the keys in `tgt_voc`, name it `tgtkeys`, and sort in a way such that
+            the key in `genwords` come first.
+
+        10. Add everything in `tgtkeys` to an `self.dictionary` instance attribute.
+        """
+
         """unks words occurring <= thresh times"""
         tgt_voc = Counter()
         assert os.path.exists(path)
@@ -94,15 +154,16 @@ class SentenceCorpus(object):
                     fields = get_wikibio_poswrds(tokes) #key, pos -> wrd
                 else:
                     fields = get_e2e_poswrds(tokes) # key, pos -> wrd
+
                 fieldvals = fields.values()
                 tgt_voc.update(fieldvals)
                 linewords.append(set(wrd for wrd in fieldvals
                                      if wrd not in punctuation))
+
                 tgt_voc.update([k for k, idx in fields])
                 tgt_voc.update([idx for k, idx in fields])
 
         genwords = Counter()
-        # Add words to the dictionary
         with open(path, 'r') as f:
             #tokens = 0
             for l, line in enumerate(f):
@@ -115,6 +176,7 @@ class SentenceCorpus(object):
         # N.B. it's possible a word appears enough times in total but not in genwords
         # so we need separate unking for generation
         #print "comeon", "aerobatic" in genwords
+
         for cntr in [tgt_voc, genwords]:
             for k in cntr.keys():
                 if cntr[k] <= thresh:
