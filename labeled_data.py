@@ -312,7 +312,6 @@ class SentenceCorpus(object):
 
                 Then: append the `wrd2idxs` index of this word.
 
-
                 Else: Use -1 as the index.
 
             Almost conversely, this is maintaining metadata about those words that were "copied."
@@ -329,7 +328,6 @@ class SentenceCorpus(object):
                         - It is not in `self.genset`
 
                 Then: the `wrd2fields` list for this word.
-
 
                 Else: [global numerical index for word, w2i["<ncf1>"], w2i["<ncf2>"], w2i["<ncf3>"]]
 
@@ -351,7 +349,7 @@ class SentenceCorpus(object):
         :return: sents, labels, src_feats, copylocs, inps
 
         """
-        
+
         """Assumes fmt is sentence|||s1,e1,k1 s2,e2,k2 ...."""
         assert os.path.exists(path)
 
@@ -543,12 +541,56 @@ class SentenceCorpus(object):
 
     def minibatchify(self, sents, labels, feats, locs, inps, bsz):
         """
+        ASAPP DOCSTRING:
+
+        (Pdb) type(sents)
+        <type 'list'>
+        (Pdb) len(sents)
+        42061
+        (Pdb) sents[0]
+        [503, 0, 471, 144, 407, 0, 142, 450, 400, 755, 310, 136, 126, 391, 399, 772, 0, 136, 255]
+
+        (Pdb) type(labels)
+        <type 'list'>
+        (Pdb) len(labels)
+        42061
+        (Pdb) labels[0]
+        [(0, 2, 0), (2, 3, 1), (4, 6, 6), (11, 12, 7), (17, 18, 7), (18, 19, 8)]
+
+        (Pdb) type(feats)
+        <type 'list'>
+        (Pdb) len(feats)
+        42061
+        (Pdb) feats[0]
+        [[861, 780, 400], [850, 781, 820], [855, 781, 840], [850, 780, 407], [814, 783, 854], [861, 783, 400], [861, 781, 672], [855, 780, 503], [814, 780, 433], [861, 782, 382], [814, 782, 772], [814, 781, 293], [865, 780, 471]]
+
+        (Pdb) type(locs)
+        <type 'list'>
+        (Pdb) len(locs)
+        42061
+        (Pdb) locs[0]
+        [[7], [2], [12], [-1], [3], [1], [-1], [-1], [0, 5], [-1], [-1], [-1], [-1], [-1], [-1], [10], [4], [-1], [-1]]
+
+        (Pdb) type(inps)
+        <type 'list'>
+        (Pdb) len(inps)
+        42061
+        (Pdb) inps[0]
+        [[[503, 855, 780, 870]], [[840, 855, 781, 871]], [[471, 865, 780, 871]], [[144, 867, 868, 869]], [[407, 850, 780, 870]], [[820, 850, 781, 871]], [[142, 867, 868, 869]], [[450, 867, 868, 869]], [[400, 861, 780, 870], [400, 861, 783, 871]], [[755, 867, 868, 869]], [[310, 867, 868, 869]], [[136, 867, 868, 869]], [[126, 867, 868, 869]], [[391, 867, 868, 869]], [[399, 867, 868, 869]], [[772, 814, 782, 870]], [[854, 814, 783, 871]], [[136, 867, 868, 869]], [[255, 867, 868, 869]]]
+        """
+
+        """
         this should result in there never being any padding.
         each minibatch is:
           (seqlen x bsz, bsz-length list of lists of (start, end, label) constraints,
            bsz x nfields x nfeats, seqlen x bsz x max_locs, seqlen x bsz x max_locs x nfeats)
         """
         # sort in ascending order
+        """
+        `sents` are sorted in increasing order of length; sorted_idxs contains their corresponding index in the original `sents` input.
+
+        (This might seem dumb. Presumably we'll use this information momentarily to index into the other equally-sized inputs.)
+        """
         sents, sorted_idxs = zip(*sorted(zip(sents, range(len(sents))), key=lambda x: len(x[0])))
         minibatches, mb2linenos = [], []
         curr_batch, curr_labels, curr_feats, curr_locs, curr_linenos = [], [], [], [], []
@@ -556,6 +598,184 @@ class SentenceCorpus(object):
         curr_len = len(sents[0])
         for i in xrange(len(sents)):
             if len(sents[i]) != curr_len or len(curr_batch) == bsz: # we're done
+                """
+                This is kind of neat:
+
+                Append, i.e. finalize the batch, if you reach the batch size, or:
+
+                if the current sentence is not the same length as the previous sentence. (This way,
+                as they say, there is never any reason for padding!)
+                """
+
+                """
+                The first lists comprised of > 1 elements (i.e. they had > 1 corresponding sentences of the same length).
+
+                Before any padding (on the lists that were not `curr_batch`, i.e. the ones containing things that aren't
+                the global numerical word indices that comprise a sentence):
+
+                (Pdb) curr_batch
+                [[253, 533, 632, 0, 136, 255], [0, 516, 56, 139, 136, 255], [396, 307, 533, 147, 0, 255], [503, 0, 142, 158, 461, 255], [0, 533, 147, 141, 619, 255]]
+
+                (Pdb) curr_labels
+                [[(0, 1, 4), (1, 2, 1), (3, 4, 0), (4, 5, 7), (5, 6, 8)], [(0, 1, 0), (4, 5, 7), (5, 6, 8)], [(1, 2, 4), (2, 3, 1), (4, 5, 0), (5, 6, 8)], [(0, 2, 0), (3, 4, 2), (5, 6, 8)], [(0, 1, 0), (1, 2, 1), (5, 6, 8)]]
+
+                (Pdb) curr_feats
+                [[[865, 780, 533], [861, 780, 307], [855, 780, 846]], [[865, 780, 533], [862, 780, 799], [855, 780, 810]], [[865, 780, 533], [861, 780, 307], [855, 780, 846]], [[803, 780, 158], [861, 780, 307], [855, 781, 791], [855, 780, 503]], [[865, 780, 533], [862, 780, 799], [855, 780, 810]]]
+
+                (Pdb) curr_locs
+                [[[-1], [0], [-1], [2], [-1], [-1]], [[2], [-1], [-1], [-1], [-1], [-1]], [[-1], [1], [0], [-1], [2], [-1]], [[3], [2], [-1], [0], [-1], [-1]], [[2], [0], [-1], [-1], [-1], [-1]]]
+
+                (Pdb) curr_inps
+                [[[[253, 867, 868, 869]], [[533, 865, 780, 871]], [[632, 867, 868, 869]], [[846, 855, 780, 871]], [[136, 867, 868, 869]], [[255, 867, 868, 869]]], [[[810, 855, 780, 871]], [[516, 867, 868, 869]], [[56, 867, 868, 869]], [[139, 867, 868, 869]], [[136, 867, 868, 869]], [[255, 867, 868, 869]]], [[[396, 867, 868, 869]], [[307, 861, 780, 871]], [[533, 865, 780, 871]], [[147, 867, 868, 869]], [[846, 855, 780, 871]], [[255, 867, 868, 869]]], [[[503, 855, 780, 870]], [[791, 855, 781, 871]], [[142, 867, 868, 869]], [[158, 803, 780, 871]], [[461, 867, 868, 869]], [[255, 867, 868, 869]]], [[[810, 855, 780, 871]], [[533, 865, 780, 871]], [[147, 867, 868, 869]], [[141, 867, 868, 869]], [[619, 867, 868, 869]], [[255, 867, 868, 869]]]]
+
+                Now, in the form in which they're appended to `minibatches`:
+
+                (Pdb) torch.LongTensor(curr_batch).t().contiguous()
+                 253    0  396  503    0
+                 533  516  307    0  533
+                 632   56  533  142  147
+                   0  139  147  158  141
+                 136  136    0  461  619
+                 255  255  255  255  255
+                [torch.LongTensor of size 6x5]
+
+                (Pdb) curr_labels
+                [[(0, 1, 4), (1, 2, 1), (3, 4, 0), (4, 5, 7), (5, 6, 8)], [(0, 1, 0), (4, 5, 7), (5, 6, 8)], [(1, 2, 4), (2, 3, 1), (4, 5, 0), (5, 6, 8)], [(0, 2, 0), (3, 4, 2), (5, 6, 8)], [(0, 1, 0), (1, 2, 1), (5, 6, 8)]]
+
+                (Pdb) self.padded_feat_mb(curr_feats)
+                (0 ,.,.) =
+                  865  780  533
+                  861  780  307
+                  855  780  846
+                    1    1    1
+
+                (1 ,.,.) =
+                  865  780  533
+                  862  780  799
+                  855  780  810
+                    1    1    1
+
+                (2 ,.,.) =
+                  865  780  533
+                  861  780  307
+                  855  780  846
+                    1    1    1
+
+                (3 ,.,.) =
+                  803  780  158
+                  861  780  307
+                  855  781  791
+                  855  780  503
+
+                (4 ,.,.) =
+                  865  780  533
+                  862  780  799
+                  855  780  810
+                    1    1    1
+                [torch.LongTensor of size 5x4x3]
+
+                (Pdb) self.padded_loc_mb(curr_locs)
+                (0 ,.,.) =
+                 -1
+                  2
+                 -1
+                  3
+                  2
+
+                (1 ,.,.) =
+                  0
+                 -1
+                  1
+                  2
+                  0
+
+                (2 ,.,.) =
+                 -1
+                 -1
+                  0
+                 -1
+                 -1
+
+                (3 ,.,.) =
+                  2
+                 -1
+                 -1
+                  0
+                 -1
+
+                (4 ,.,.) =
+                 -1
+                 -1
+                  2
+                 -1
+                 -1
+
+                (5 ,.,.) =
+                 -1
+                 -1
+                 -1
+                 -1
+                 -1
+                [torch.LongTensor of size 6x5x1]
+
+                (Pdb) self.padded_inp_mb(curr_inps).transpose(0, 1).contiguous()
+
+                ...
+
+                533  865  780  871
+
+                (2 ,3 ,.,.) =
+                142  867  868  869
+
+                (2 ,4 ,.,.) =
+                147  867  868  869
+
+                (3 ,0 ,.,.) =
+                846  855  780  871
+
+                (3 ,1 ,.,.) =
+                139  867  868  869
+
+                (3 ,2 ,.,.) =
+                147  867  868  869
+
+                (3 ,3 ,.,.) =
+                158  803  780  871
+
+                (3 ,4 ,.,.) =
+                141  867  868  869
+
+                (4 ,0 ,.,.) =
+                136  867  868  869
+
+                (4 ,1 ,.,.) =
+                136  867  868  869
+
+                (4 ,2 ,.,.) =
+                846  855  780  871
+
+                (4 ,3 ,.,.) =
+                461  867  868  869
+
+                (4 ,4 ,.,.) =
+                619  867  868  869
+
+                (5 ,0 ,.,.) =
+                255  867  868  869
+
+                (5 ,1 ,.,.) =
+                255  867  868  869
+
+                (5 ,2 ,.,.) =
+                255  867  868  869
+
+                (5 ,3 ,.,.) =
+                255  867  868  869
+
+                (5 ,4 ,.,.) =
+                255  867  868  869
+                [torch.LongTensor of size 6x5x1x4]
+                """
                 minibatches.append((torch.LongTensor(curr_batch).t().contiguous(),
                                     curr_labels, self.padded_feat_mb(curr_feats),
                                     self.padded_loc_mb(curr_locs),
@@ -575,6 +795,23 @@ class SentenceCorpus(object):
                 curr_locs.append(locs[sorted_idxs[i]])
                 curr_inps.append(inps[sorted_idxs[i]])
                 curr_linenos.append(sorted_idxs[i])
+
+                """
+                After the first append:
+
+                (Pdb) curr_batch
+                [[407, 255]]
+                (Pdb) curr_labels
+                [[(1, 2, 8)]]
+                (Pdb) curr_feats
+                [[[803, 780, 229], [850, 781, 808], [850, 780, 503], [850, 782, 800], [855, 780, 858], [814, 780, 379]]]
+                (Pdb) curr_locs
+                [[[-1], [-1]]]
+                (Pdb) curr_inps
+                [[[[407, 867, 868, 869]], [[255, 867, 868, 869]]]]
+                (Pdb) curr_linenos
+                [2010]
+                """
         # catch last
         if len(curr_batch) > 0:
             minibatches.append((torch.LongTensor(curr_batch).t().contiguous(),
