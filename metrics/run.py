@@ -5,8 +5,35 @@ import sys
 
 
 def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
+    """
+    Write the ground-truth natural-language outputs to file. Thereafter, this file
+    will be used by the metrics runner in [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+
+    To complete this task, we require iterating over both the structured inputs, called `x`, as well
+    as the ground-truth, called `y`.
+
+    For each distinct entry in the former, we may have multiple outputs in the latter.
+
+    For example, the first 3 rows of `x` might be:
+
+    __start_name__ Alimentum __end_name__ __start_area__ city centre __end_area__ __start_familyFriendly__ no __end_familyFriendly__
+    __start_name__ Alimentum __end_name__ __start_area__ city centre __end_area__ __start_familyFriendly__ no __end_familyFriendly__
+    __start_name__ Alimentum __end_name__ __start_area__ city centre __end_area__ __start_familyFriendly__ no __end_familyFriendly__
+
+    The (corresponding) first 3 rows of `y` might be:
+
+    There is a place in the city centre , Alimentum , that is not family - friendly . <eos>|||6,8,5 8,9,7 9,10,0 10,11,7 17,18,7 18,19,8
+    In the city centre there is a venue name Alimentum , this is not a family - friendly venue . <eos>|||2,4,5 9,10,0 10,11,7 19,20,7 20,21,8
+    Alimentum is not a family - friendly place , located in city centre . <eos>|||0,1,0 8,9,7 11,13,5 13,14,7 14,15,8
+
+    One-to-many.
+
+    Finally, we parse the latter as necessary then write to disk.
+    """
+
     # x: the structured input
     # y: the ground-truth natural-language output
+
     x_fname = f'src_{dset}.txt'
     y_fname = f'{dset}.txt'
 
@@ -24,9 +51,7 @@ def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
 
     last_x_row = ''
     for i, (x_row, y_row) in enumerate(zip(x, y)):
-        # Assuming a many-to-one relationship between outputs and *distinct* inputs,
-        # if we encounter an output corresponding to a novel distinct input, separate
-        # this block with a newline.
+        # If we encounter an output corresponding to a novel distinct input, separate this block with a newline.
         if i > 0 and x_row != last_x_row:
             ground_truth_file.write('\n')
 
