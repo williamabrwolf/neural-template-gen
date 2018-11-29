@@ -120,7 +120,12 @@ def run(task, dset, gen_output_path):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    desc = """
+    Example usage:
+
+    python metrics/run.py --task e2e --dset valid --gen-output-path gens/20181129-gen-e2e-300-55-5-src_uniq_valid.txt
+    """
+    parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--task', type=str, required=True, help='[e2e|wikibio]')
     parser.add_argument('--dset', type=str, required=True, help='[train|valid|test]')
     parser.add_argument('--gen-output-path', type=str, required=True,
