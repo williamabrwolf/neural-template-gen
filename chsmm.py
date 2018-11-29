@@ -948,7 +948,8 @@ parser.add_argument('-gen_wts', type=str, default='1,1', help='')
 parser.add_argument('-min_gen_tokes', type=int, default=0, help='')
 # TODO: minimum states to generate? do we actually generate states?
 parser.add_argument('-min_gen_states', type=int, default=0, help='')
-# TODO: generate on validation set?
+# NOTE: generate natural language outputs on the validation set
+# NOTE: seems like this is used during training...
 parser.add_argument('-gen_on_valid', action='store_true', help='')
 # TODO: ?
 parser.add_argument('-align', action='store_true', help='')
@@ -1341,10 +1342,25 @@ if __name__ == "__main__":
                     gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=src_line)
         else:
             for ll, src_line in enumerate(src_lines):
+                """
+                I'm almost positive that this is an intermediary step to computing
+                `src` feats, i.e. features for the structured input, used during
+                generation.
+                """
                 if "wiki" in args.data:
                     src_tbl = get_wikibio_poswrds(src_line.strip().split())
                 else:
                     src_tbl = get_e2e_poswrds(src_line.strip().split())
+
+                """
+                Generate one output for each input.
+
+                Generate from top 100 templates, selecting the (output, template_i)
+                (where `i in [0, 100)`) with the best "score."
+
+                At a first pass, this code is too crazy to figure out what this "score"
+                is.
+                """
 
                 gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=src_line)
 
