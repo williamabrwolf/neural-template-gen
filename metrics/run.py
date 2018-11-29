@@ -4,22 +4,14 @@ import subprocess
 import sys
 
 
-def run(task, dset, gen_output_path):
-    if task == 'e2e':
-        task_dir = 'data/e2e_aligned'
-    else:
-        raise NotImplementedError('Will/Ethan have not yet implemented logic for wikibio.')
-
-    # Write ground-truth output in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
     # x: the structured input
     # y: the ground-truth natural-language output
-
     x_fname = f'src_{dset}.txt'
     y_fname = f'{dset}.txt'
 
     x_path = os.path.join(task_dir, x_fname)
     y_path = os.path.join(task_dir, y_fname)
-    ground_truth_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
 
     # Read x, y into memory
     x = open(x_path, 'r').readlines()
@@ -46,8 +38,8 @@ def run(task, dset, gen_output_path):
         last_x_row = x_row
     ground_truth_file.close()
 
-    # Next, write our generated output to the required format
-    preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
+
+def _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path):
     if os.path.exists(preds_path):
         os.remove(preds_path)
 
@@ -59,15 +51,37 @@ def run(task, dset, gen_output_path):
             output = row.split('|||')[0]
             f.write(output + '\n')
 
+
+def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
     commands = [
         sys.executable,
         'metrics/e2e-metrics/measure_scores.py',
         ground_truth_path,
         preds_path
     ]
-    # _ = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(f"\nRun:\n\n{' '.join(commands)}")
-    print()
+    if run_in_subprocess:
+        _ = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    else:
+        print(f"\nRun:\n\n{' '.join(commands)}")
+        print()
+
+
+
+def run(task, dset, gen_output_path):
+    if task == 'e2e':
+        task_dir = 'data/e2e_aligned'
+    else:
+        raise NotImplementedError('Will/Ethan have not yet implemented logic for wikibio.')
+
+    # Write ground-truth output in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    ground_truth_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
+    _write_ground_truth_to_file(dset, task_dir, ground_truth_path)
+
+    # Write predictions in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
+    _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path)
+
+    _run_metrics(ground_truth_path, preds_path)
 
 
 if __name__ == '__main__':
