@@ -28,7 +28,10 @@ def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
 
     One-to-many.
 
-    Finally, we parse the latter as necessary then write to disk.
+    Finally, we parse the latter then write to disk. The required format is: one natural-language output per line, where blocks
+    of multiple outputs corresponding to a single distinct input are separate by a newline character.
+
+    For example: https://github.com/tuetschek/e2e-metrics/blob/master/example-inputs/devel-conc.txt
     """
 
     # x: the structured input
@@ -65,6 +68,11 @@ def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
 
 
 def _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path):
+    """
+    One prediction (generated natural-language output) per line.
+
+    For example: https://github.com/tuetschek/e2e-metrics/blob/master/example-inputs/baseline-output.txt
+    """
     if os.path.exists(preds_path):
         os.remove(preds_path)
 
@@ -78,6 +86,9 @@ def _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path):
 
 
 def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
+    """
+    Run the metrics suite, as per: [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    """
     commands = [
         sys.executable,
         'metrics/e2e-metrics/measure_scores.py',
@@ -91,18 +102,17 @@ def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
         print()
 
 
-
 def run(task, dset, gen_output_path):
     if task == 'e2e':
         task_dir = 'data/e2e_aligned'
     else:
         raise NotImplementedError('Will/Ethan have not yet implemented logic for wikibio.')
 
-    # Write ground-truth output in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    # Write ground-truth output to disk.
     ground_truth_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
     _write_ground_truth_to_file(dset, task_dir, ground_truth_path)
 
-    # Write predictions in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    # Write predictions to disk.
     preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
     _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path)
 
