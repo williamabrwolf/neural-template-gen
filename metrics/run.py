@@ -85,7 +85,7 @@ def _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path):
             f.write(output + '\n')
 
 
-def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
+def _run_metrics(ground_truth_path, preds_path, output_path, run_in_subprocess=False):
     """
     Run the metrics suite, as per: [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
     """
@@ -98,7 +98,7 @@ def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
     if run_in_subprocess:
         _ = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
-        print(f"\nRun:\n\n{' '.join(commands)}")
+        print(f"\nRun:\n\n{' '.join(commands)} | tee {output_path}")
         print()
 
 
@@ -116,7 +116,8 @@ def run(task, dset, gen_output_path):
     preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
     _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path)
 
-    _run_metrics(ground_truth_path, preds_path)
+    output_path = os.path.join('metrics', 'results', task, gen_output_path.split('/')[-1])
+    _run_metrics(ground_truth_path, preds_path, output_path)
 
 
 if __name__ == '__main__':
