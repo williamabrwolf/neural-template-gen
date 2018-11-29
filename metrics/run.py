@@ -90,7 +90,7 @@ def _run_metrics(ground_truth_path, preds_path, run_in_subprocess=False):
     Run the metrics suite, as per: [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
     """
     commands = [
-        sys.executable,
+        'python',
         'metrics/e2e-metrics/measure_scores.py',
         ground_truth_path,
         preds_path
