@@ -1,5 +1,7 @@
 import argparse
 import os
+import subprocess
+import sys
 
 
 def run(task, dset, gen_output_path):
@@ -17,16 +19,16 @@ def run(task, dset, gen_output_path):
 
     x_path = os.path.join(task_dir, x_fname)
     y_path = os.path.join(task_dir, y_fname)
-    y_parsed_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
+    ground_truth_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
 
     # Read x, y into memory
     x = open(x_path, 'r').readlines()
     y = open(y_path, 'r').readlines()
     assert len(x) == len(y), 'Your structured inputs (x) and natural-language outputs (y) do not line up 1 to 1.'
 
-    if os.path.exists(y_parsed_path):
-        os.remove(y_parsed_path)
-    y_parsed_file = open(y_parsed_path, 'a')
+    if os.path.exists(ground_truth_path):
+        os.remove(ground_truth_path)
+    ground_truth_file = open(ground_truth_path, 'a')
 
     last_x_row = ''
     for i, (x_row, y_row) in enumerate(zip(x, y)):
@@ -34,15 +36,15 @@ def run(task, dset, gen_output_path):
         # if we encounter an output corresponding to a novel distinct input, separate
         # this block with a newline.
         if i > 0 and x_row != last_x_row:
-            y_parsed_file.write('\n')
+            ground_truth_file.write('\n')
 
         # An example `y_row`: `There is a place in the city centre , Alimentum , that is not family - friendly . <eos>|||6,8,5 8,9,7 9,10,0 10,11,7 17,18,7 18,19,8`
         # This line will extract: `There is a place in the city centre , Alimentum , that is not family - friendly .`
         output = y_row.split('<eos>|||')[0].strip()
-        y_parsed_file.write(output + '\n')
+        ground_truth_file.write(output + '\n')
 
         last_x_row = x_row
-    y_parsed_file.close()
+    ground_truth_file.close()
 
     # Next, write our generated output to the required format
     preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
@@ -56,6 +58,16 @@ def run(task, dset, gen_output_path):
         for row in gen_output[start_idx:]:
             output = row.split('|||')[0]
             f.write(output + '\n')
+
+    commands = [
+        sys.executable,
+        'metrics/e2e-metrics/measure_scores.py',
+        ground_truth_path,
+        preds_path
+    ]
+    # _ = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print(f"\nRun:\n\n{' '.join(commands)}")
+    print()
 
 
 if __name__ == '__main__':
