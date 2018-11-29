@@ -1,32 +1,68 @@
-# import csv
+import argparse
 import os
 
-task = 'e2e'
-task_dir = 'data/e2e_aligned'
 
-# for validation set
-dset = 'valid'
+def run(task, dset, gen_output_path):
+    if task == 'e2e':
+        task_dir = 'data/e2e_aligned'
+    else:
+        raise NotImplementedError('Will/Ethan have not yet implemented logic for wikibio.')
 
-x_fname = f'src_{dset}.txt'
-y_fname = f'{dset}.txt'
+    # Write ground-truth output in the format required by [e2e-metrics](https://github.com/tuetschek/e2e-metrics#usage).
+    # x: the structured input
+    # y: the ground-truth natural-language output
 
-x_path = os.path.join(task_dir, x_fname)
-y_path = os.path.join(task_dir, y_fname)
-y_eval_path = f'metrics/tmp/{task}/measure_scores__{dset}.txt'
+    x_fname = f'src_{dset}.txt'
+    y_fname = f'{dset}.txt'
 
-x = open(x_path, 'r').readlines()
-y = open(y_path, 'r').readlines()
+    x_path = os.path.join(task_dir, x_fname)
+    y_path = os.path.join(task_dir, y_fname)
+    y_parsed_path = f'metrics/tmp/{task}/measure_scores__ground_truth__{dset}.txt'
 
-assert len(x) == len(y), 'Your structured inputs (x) and natural-language outputs (y) do not line up 1 to 1.'
+    # Read x, y into memory
+    x = open(x_path, 'r').readlines()
+    y = open(y_path, 'r').readlines()
+    assert len(x) == len(y), 'Your structured inputs (x) and natural-language outputs (y) do not line up 1 to 1.'
 
-y_eval_file = open(y_eval_path, 'a')
+    if os.path.exists(y_parsed_path):
+        os.remove(y_parsed_path)
+    y_parsed_file = open(y_parsed_path, 'a')
 
-last_x_row = ''
-for i, (x_row, y_row) in enumerate(zip(x, y)):
-    if i > 0 and x_row != last_x_row:
-        y_eval_file.write('\n')
+    last_x_row = ''
+    for i, (x_row, y_row) in enumerate(zip(x, y)):
+        # Assuming a many-to-one relationship between outputs and *distinct* inputs,
+        # if we encounter an output corresponding to a novel distinct input, separate
+        # this block with a newline.
+        if i > 0 and x_row != last_x_row:
+            y_parsed_file.write('\n')
 
-    output = y_row.split('<eos>|||')[0].strip()
-    y_eval_file.write(output + '\n')
+        # An example `y_row`: `There is a place in the city centre , Alimentum , that is not family - friendly . <eos>|||6,8,5 8,9,7 9,10,0 10,11,7 17,18,7 18,19,8`
+        # This line will extract: `There is a place in the city centre , Alimentum , that is not family - friendly .`
+        output = y_row.split('<eos>|||')[0].strip()
+        y_parsed_file.write(output + '\n')
 
-    last_x_row = x_row
+        last_x_row = x_row
+    y_parsed_file.close()
+
+    # Next, write our generated output to the required format
+    preds_path = f'metrics/tmp/{task}/measure_scores__predictions__{dset}.txt'
+    if os.path.exists(preds_path):
+        os.remove(preds_path)
+
+    gen_output = open(gen_output_path, 'r').readlines()
+    start_idx = [i for i, line in enumerate(gen_output) if line.startswith('assuming we start on line')][0] + 1
+
+    with open(preds_path, 'a') as f:
+        for row in gen_output[start_idx:]:
+            output = row.split('|||')[0]
+            f.write(output + '\n')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', type=str, required=True, help='[e2e|wikibio]')
+    parser.add_argument('--dset', type=str, required=True, help='[train|valid|test]')
+    parser.add_argument('--gen-output-path', type=str, required=True,
+                        help='The relative path to the generated output, e.g. gens/gen-e2e-300-60-src_uniq_valid.txt')
+    args = parser.parse_args()
+    run(**args.__dict__)
