@@ -143,5 +143,6 @@ time python chsmm.py \
 -ntemplates 100 \
 -gen_wts '1,1' \
 -cuda \
+-seed 1 \
 -min_gen_tokes 0 > gens/20181129-gen-e2e-300-55-5-src_test.txt
 ```
