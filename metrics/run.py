@@ -1,4 +1,5 @@
 import argparse
+import csv
 import os
 import subprocess
 import sys
@@ -43,28 +44,49 @@ def _write_ground_truth_to_file(dset, task_dir, ground_truth_path):
     x_path = os.path.join(task_dir, x_fname)
     y_path = os.path.join(task_dir, y_fname)
 
-    # Read x, y into memory
-    x = open(x_path, 'r').readlines()
-    y = open(y_path, 'r').readlines()
-    assert len(x) == len(y), 'Your structured inputs (x) and natural-language outputs (y) do not line up 1 to 1.'
+    if dset == 'valid':
 
-    if os.path.exists(ground_truth_path):
-        os.remove(ground_truth_path)
-    ground_truth_file = open(ground_truth_path, 'a')
+        # Read x, y into memory
+        x = open(x_path, 'r').readlines()
+        y = open(y_path, 'r').readlines()
+        assert len(x) == len(y), 'Your structured inputs (x) and natural-language outputs (y) do not line up 1 to 1.'
 
-    last_x_row = ''
-    for i, (x_row, y_row) in enumerate(zip(x, y)):
-        # If we encounter an output corresponding to a novel distinct input, separate this block with a newline.
-        if i > 0 and x_row != last_x_row:
-            ground_truth_file.write('\n')
+        if os.path.exists(ground_truth_path):
+            os.remove(ground_truth_path)
+        ground_truth_file = open(ground_truth_path, 'a')
 
-        # An example `y_row`: `There is a place in the city centre , Alimentum , that is not family - friendly . <eos>|||6,8,5 8,9,7 9,10,0 10,11,7 17,18,7 18,19,8`
-        # This line will extract: `There is a place in the city centre , Alimentum , that is not family - friendly .`
-        output = y_row.split('<eos>|||')[0].strip()
-        ground_truth_file.write(output + '\n')
+        last_x_row = ''
+        for i, (x_row, y_row) in enumerate(zip(x, y)):
+            # If we encounter an output corresponding to a novel distinct input, separate this block with a newline.
+            if i > 0 and x_row != last_x_row:
+                ground_truth_file.write('\n')
 
-        last_x_row = x_row
-    ground_truth_file.close()
+            # An example `y_row`: `There is a place in the city centre , Alimentum , that is not family - friendly . <eos>|||6,8,5 8,9,7 9,10,0 10,11,7 17,18,7 18,19,8`
+            # This line will extract: `There is a place in the city centre , Alimentum , that is not family - friendly .`
+            output = y_row.split('<eos>|||')[0].strip()
+            ground_truth_file.write(output + '\n')
+
+            last_x_row = x_row
+        ground_truth_file.close()
+
+    elif dset == 'test':
+
+        y_path = 'data/playground/e2e-dataset/testset_w_refs.csv'
+        y = csv.reader( open(y_path, 'r') )
+
+        if os.path.exists(ground_truth_path):
+            os.remove(ground_truth_path)
+        ground_truth_file = open(ground_truth_path, 'a')
+
+        # inp: the structured input (though, not in a format that's ingestable by our model)
+        # output: the ground-truth output
+        last_inp = ''
+        for i, (inp, output) in enumerate(y):
+            if i > 1 and inp != last_inp:
+                ground_truth_file.write('\n')
+            if i > 0:
+                ground_truth_file.write(output + '\n')
+            last_inp = inp
 
 
 def _write_predictions_to_file(dset, task_dir, preds_path, gen_output_path):
