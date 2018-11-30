@@ -146,3 +146,34 @@ time python chsmm.py \
 -seed 1 \
 -min_gen_tokes 0 > gens/20181129-gen-e2e-300-55-5-src_test.txt
 ```
+
+11/30/18:
+
+Train the autogressive model:
+
+```
+time python chsmm.py \
+  -data data/e2e_aligned \
+  -emb_size 300 \
+  -hid_size 300 \
+  -layers 1 \
+  -K 60 \
+  -L 4 \
+  -log_interval 200 \
+  -thresh 9 \
+  -emb_drop \
+  -bsz 8 \
+  -max_seqlen 55 \
+  -lr 0.5 \
+  -sep_attn \
+  -max_pool \
+  -unif_lenps \
+  -one_rnn \
+  -Kmul 1 \
+  -mlpinp \
+  -onmt_decay \
+  -cuda \
+  -seed 1818 \
+  -save models/chsmm-e2e-60-1-far.pt \
+  -ar_after_decay
+```
