@@ -1142,8 +1142,6 @@ if __name__ == "__main__":
                 "copied" have richer data, and the ones that were not have something
                 closer to "sentinel"/default data
             """
-            import pdb; pdb.set_trace()
-
             x, _, src, locs, inps = corpus.train[i]
             fwd_cidxs = None
 
