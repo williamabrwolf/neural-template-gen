@@ -120,8 +120,7 @@ def _run_metrics(ground_truth_path, preds_path, output_path, run_in_subprocess=F
     if run_in_subprocess:
         _ = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
-        print(f"\nRun:\n\n{' '.join(commands)} | tee {output_path}")
-        print()
+        print(f"{' '.join(commands)} | tee {output_path}")
 
 
 def run(task, dset, gen_output_path):
