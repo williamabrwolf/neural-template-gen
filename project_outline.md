@@ -9,7 +9,7 @@ The high level goal of this project is to ingest historical conversation data an
 
 
 ### Related Work
-To put this project in terms of related work, we want to make a semi-supervised version of [2], or a dialogue version of [1], or a language model version of [3]
+To put this project in terms of related work, we want to make a structured (optionally semi-supervised) version of [2], or a dialogue version of [1], or a language model version of [3]
 
 
 ### Model
@@ -18,14 +18,15 @@ We decompose the task into 2 main components
 
 #### Language Model
 
-Model is essentially a modified seq2seq model. Given the previous state $z_{t-1}$, previous utterances $x_{t-1}$, and other context from the conversation $c$, predict the next. Then the sequence of $z=\{z_{t_1}, \ldots z_{t_T}\}$ can be read off and fed to the next model. 
+Model is essentially a modified seq2seq model. Given the previous state $z_{t-1}$, previous utterances $x_{t-1}$, and other context from the conversation $c$, predict the next state $z_{t}$ and $x_t$. Then the sequence of $z=\{z_{t_1}, \ldots z_{t_T}\}$ can be read off and fed to the next model. 
 
 
-In the case of [2], this is decomposed at inference time as follows:
+In the case of [2], they want to decouple states from context. This happens at inference time with the following decomposition:
 <!--$x \rightarrow q(z | x) \rightarrow$-->
 
 - Encoder $\mathcal{R}(z | x)$
 - Contextual Decoder $c \rightarrow \pi(z | c) \rightarrow \mathcal{F}(x | z,c)$
+
 
 
 <!-- - $\mathcal{R}$: an RNN the encodes $\mathbf{x}$ into $\mathbf{z}$
@@ -34,14 +35,14 @@ In the case of [2], this is decomposed at inference time as follows:
 - $\pi$: a network that learns $\pi(\mathbf{z}\vert\mathbf{c})$
 - $\mathcal{F}^d$: an RNN that predicts $\tilde{\mathbf{x}} = \mathcal{F}^d(\tilde{\mathbf{x}}\vert \mathbf{z} \sim \pi(\mathbf{z}\vert\mathbf{c}), h^e)$-->
 
-Our $z$'s can and should make use of structure inherent in customer service dialogue. For example, we can enforce separate states for customer and agent.
+Our $z$'s can and should make use of structure inherent in customer service dialogue. For example, we can enforce separate states for customer and agent, or separate sets of states for "phases" of a conversation inbetween breakpoints.
 
-We can also leverage limited, noisy knowledge of $z$ during training. Rather than purely unsupervised, we can consider a semisupervised setup where some examples are ground truth pairs ($x$, $z$). Context may be given as additional $z$ dimensions. Here are some potential sources of context:
+We can also leverage limited, noisy knowledge of $z$ during training. Rather than purely unsupervised, we can consider a semisupervised setup where some examples are ground truth pairs ($x$, $z$). Context may be given as additional $z$ dimensions. Here are some potential sources of context. Many of these would be more useful for product than pure research:
 
 - CSRS intent
 - SRU output from CSRS model
 - Sentiment 
-- Customer specific features
+- Customer/agent specific features
 - Aggregate transition probabilities $p(z_t = z_j | z_{t-1}=z_i )$.
 
 
@@ -52,7 +53,7 @@ The neural template model in [1] uses a simple, baseline summarization step: for
 
 Propose to use the following summarization framework, extending Michael Griffiths's previous setup:
 
-1. Choose a similarity function between 2 sequences of states, e.g. Frechet distance, edit distance, weighted edit distance with (prespecified/learned) weights, (prespecified/learned polynomial) kernel distance function. One option is to weight the beginning and end of the conversations to have lower distance penalty than the middle, to encourage diversity multiple diverse sentences which start and end the same way. These are all essentially hyperparameters. 
+1. Choose a similarity function between 2 sequences of states, e.g. Frechet distance, edit distance, weighted edit distance with (prespecified/learned) weights, (prespecified/learned polynomial) kernel distance function. One option is to weight the beginning and end of the conversations to have lower distance penalty than the middle, to encourage diversity multiple diverse sentences which start and end the same way. These are all essentially hyperparameters. Another option is to consider similarity of n-gram subsequences of $z$, so that sequences are similar if they contain similar blocks of states.
 2. Solve a clustering or facility location style objective function to produce candidate flows and example conversations which they represent
 3. Compute train and dev metrics on a subset of intents, check that choice of hyperparameters/model design generalizes on a holdout set of different intents
 
@@ -193,7 +194,7 @@ Production datasets
 
 -  Troubleshooting task: Chats based around a troubleshooting tree. Annotators were given the tree and prompts at each node which correspond to meaningful states tag, and then supplied responses which fit the prompt. `agent` text + `agent_abstract` tag + `user` text (no states) 
 <details><summary>examples</summary><p>
->  [{"dialogue": [{"state": "1", "sentence": "AGENT: Hi, how can I be of assistance?"}, {"state": "2", "sentence": "USER: Physical damage to my device."}, {"state": "2", "sentence": "AGENT: Do you have protection insurance?"}, {"state": "3", "sentence": "USER: I have Apple Care."}, {"state": "3", "sentence": "AGENT: <This is your solution>"}, {"state": "147", "sentence": "USER: <End Conversation>"}, {"state": "147", "sentence": "AGENT: <End Conversation>"}]
+>  [{"dialogue": [{"state": "1", "sentence": "AGENT: Hi, how can I be of assistance?"}, {"state": "2", "sentence": "USER: Physical damage to my device."}, {"state": "2", "sentence": "AGENT: Do you have protection insurance?"}, {"state": "3", "sentence": "USER: I have Apple Care."}, {"state": "3", "sentence": "AGENT: <This is your solution>"}, {"state": "147", "sentence": "USER: <End Conversation>"}, {"state": "147", "sentence": "AGENT: \<End Conversation\>"}]
 >
 >  "user": "Physical damage to my device.", 
 >            "agent": "Do you have device protection insurance on this device?", 
