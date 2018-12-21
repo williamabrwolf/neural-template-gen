@@ -1,11 +1,10 @@
 # Flow Induction: Outline
 
-The high level goal of this project is to ingest historical conversation data and produce sequences of meaningful latent states $z$ which will be useful for downstream tasks
+The high level goal of this project is to ingest historical conversation data and produce sequences of meaningful latent states $$z$$ which will be useful for downstream tasks
 
 1. summarization at a corpus level (flow)
 2. summarization at a conversation level (depositions)
 3. goal-oriented dialog: select the next state given the previous states and context, in order to maximize some reward (issue resolved, business KPIs)
-
 
 
 ### Related Work
@@ -18,32 +17,32 @@ We decompose the task into 2 main components
 
 #### Language Model
 
-Model is essentially a modified seq2seq model. Given the previous state $z_{t-1}$, previous utterances $x_{t-1}$, and other context from the conversation $c$, predict the next state $z_{t}$ and $x_t$. Then the sequence of $z=\{z_{t_1}, \ldots z_{t_T}\}$ can be read off and fed to the next model. 
+Model is essentially a modified seq2seq model. Given the previous state $$z_{t-1}$$, previous utterances $$x_{t-1}$$, and other context from the conversation $$c$$, predict the next state $$z_{t}$$ and $$x_t$$. Then the sequence of $$z=\{z_{t_1}, \ldots z_{t_T}\}$$ can be read off and fed to the next model. 
 
 
 In the case of [2], they want to decouple states from context. This happens at inference time with the following decomposition:
-<!--$x \rightarrow q(z | x) \rightarrow$-->
+<!--$$x \rightarrow q(z | x) \rightarrow$$-->
 
-- Encoder $\mathcal{R}(z | x)$
-- Contextual Decoder $c \rightarrow \pi(z | c) \rightarrow \mathcal{F}(x | z,c)$
+- Encoder $$\mathcal{R}(z | x)$$
+- Contextual Decoder $$c \rightarrow \pi(z | c) \rightarrow \mathcal{F}(x | z,c)$$
 
 
 
-<!-- - $\mathcal{R}$: an RNN the encodes $\mathbf{x}$ into $\mathbf{z}$
-	- NB: does not depend on $\mathbf{c}$ so as to learn "context-independent" semantics
-- $\mathcal{F}^e$: an RNN that encodes $\mathbf{c}$ into $h^e$
-- $\pi$: a network that learns $\pi(\mathbf{z}\vert\mathbf{c})$
-- $\mathcal{F}^d$: an RNN that predicts $\tilde{\mathbf{x}} = \mathcal{F}^d(\tilde{\mathbf{x}}\vert \mathbf{z} \sim \pi(\mathbf{z}\vert\mathbf{c}), h^e)$-->
+<!-- - $$\mathcal{R}$$: an RNN the encodes $$\mathbf{x}$$ into $$\mathbf{z}$$
+	- NB: does not depend on $$\mathbf{c}$$ so as to learn "context-independent" semantics
+- $$\mathcal{F}^e$$: an RNN that encodes $$\mathbf{c}$$ into $$h^e$$
+- $$\pi$$: a network that learns $$\pi(\mathbf{z}\vert\mathbf{c})$$
+- $$\mathcal{F}^d$$: an RNN that predicts $$\tilde{\mathbf{x}} = \mathcal{F}^d(\tilde{\mathbf{x}}\vert \mathbf{z} \sim \pi(\mathbf{z}\vert\mathbf{c}), h^e)$$-->
 
-Our $z$'s can and should make use of structure inherent in customer service dialogue. For example, we can enforce separate states for customer and agent, or separate sets of states for "phases" of a conversation inbetween breakpoints.
+Our $$z$$'s can and should make use of structure inherent in customer service dialogue. For example, we can enforce separate states for customer and agent, or separate sets of states for "phases" of a conversation inbetween breakpoints.
 
-We can also leverage limited, noisy knowledge of $z$ during training. Rather than purely unsupervised, we can consider a semisupervised setup where some examples are ground truth pairs ($x$, $z$). Context may be given as additional $z$ dimensions. Here are some potential sources of context. Many of these would be more useful for product than pure research:
+We can also leverage limited, noisy knowledge of $$z$$ during training. Rather than purely unsupervised, we can consider a semisupervised setup where some examples are ground truth pairs ($$x$$, $$z$$). Context may be given as additional $$z$$ dimensions. Here are some potential sources of context. Many of these would be more useful for product than pure research:
 
 - CSRS intent
 - SRU output from CSRS model
 - Sentiment 
 - Customer/agent specific features
-- Aggregate transition probabilities $p(z_t = z_j | z_{t-1}=z_i )$.
+- Aggregate transition probabilities $$p(z_t = z_j | z_{t-1}=z_i )$$.
 
 
 
@@ -53,16 +52,16 @@ The neural template model in [1] uses a simple, baseline summarization step: for
 
 Propose to use the following summarization framework, extending Michael Griffiths's previous setup:
 
-1. Choose a similarity function between 2 sequences of states, e.g. Frechet distance, edit distance, weighted edit distance with (prespecified/learned) weights, (prespecified/learned polynomial) kernel distance function. One option is to weight the beginning and end of the conversations to have lower distance penalty than the middle, to encourage diversity multiple diverse sentences which start and end the same way. These are all essentially hyperparameters. Another option is to consider similarity of n-gram subsequences of $z$, so that sequences are similar if they contain similar blocks of states.
+1. Choose a similarity function between 2 sequences of states, e.g. Frechet distance, edit distance, weighted edit distance with (prespecified/learned) weights, (prespecified/learned polynomial) kernel distance function. One option is to weight the beginning and end of the conversations to have lower distance penalty than the middle, to encourage diversity multiple diverse sentences which start and end the same way. These are all essentially hyperparameters. Another option is to consider similarity of n-gram subsequences of $$z$$, so that sequences are similar if they contain similar blocks of states.
 2. Solve a clustering or facility location style objective function to produce candidate flows and example conversations which they represent
 3. Compute train and dev metrics on a subset of intents, check that choice of hyperparameters/model design generalizes on a holdout set of different intents
 
 
 ### Evaluation
 
-- Purity (from [1]): each record/tag has a ground truth set of words associated with it. For example, the City record may have New York, Buenos Aires sample tokens conditioned on $z$ and check how well it correlates with a training tag. $p(x | z_i)$ New York, Main Street, Buenos Aires, Canada. Quantitative as well as quantitative
+- Purity (from [1]): each record/tag has a ground truth set of words associated with it. For example, the City record may have New York, Buenos Aires sample tokens conditioned on $$z$$ and check how well it correlates with a training tag. $$p(x | z_i)$$ New York, Main Street, Buenos Aires, Canada. Quantitative as well as quantitative
 
-- Perplexity, BLEU, ROGUE scores, etc. to measure how well $z$ can be used to predict/recover $x$. Quantitative
+- Perplexity, BLEU, ROGUE scores, etc. to measure how well $$z$$ can be used to predict/recover $$x$$. Quantitative
 
 - Issue coverage (optimization objective and online metric for number of issues sent to an algorithmic flow). Quantitative
 
@@ -174,7 +173,7 @@ Public Benchmark Datasets
 
 - Auction: dataset with labeled examples of policies/utilities for both parties (+ outcome). One example could be the [Craigslist Bargain dataset](https://stanfordnlp.github.io/cocoa/)
 <details><summary>example</summary><p>
->JVC HD-ILA 1080P 70 Inch TV ($275)
+>JVC HD-ILA 1080P 70 Inch TV (\$275)
 > Tv is approximately 10 years old. Just installed  new lamp. There are 2 HDMI inputs. Works and looks like new.
 >
 > A: Hello 
