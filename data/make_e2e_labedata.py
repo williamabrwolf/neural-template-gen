@@ -3,10 +3,10 @@ import sys
 
 from utils import get_e2e_fields, e2e_key2idx
 
-e2e_train_src = "trainset-source.tok"
-e2e_train_tgt = "trainset-target.tok"
-e2e_val_src = "devset-source.tok"
-e2e_val_tgt = "devset-target.tok"
+e2e_train_src = "playground/E2E_opennmt-py/trainset-source.tok"
+e2e_train_tgt = "playground/E2E_opennmt-py/trainset-target.tok"
+e2e_val_src = "playground/E2E_opennmt-py/devset-source.tok"
+e2e_val_tgt = "playground/E2E_opennmt-py/devset-target.tok"
 
 punctuation = set(['.', '!', ',', ';', ':', '?'])
 
@@ -53,18 +53,26 @@ def print_data(srcfi, tgtfi):
                 tgttokes = f2.readline().strip().split()
                 senttokes = tgttokes
 
+                # srcline: '__start_name__ The Vaults __end_name__ __start_eatType__ pub __end_eatType__ __start_priceRange__ more than \xc2\xa3 30 __end_priceRange__ __start_customerrating__ 5 out of 5 __end_customerrating__ __start_near__ Caf\xc3\xa9 Adriatic __end_near__\n'
+
+                # senttokes: ['The', 'Vaults', 'pub', 'near', 'Caf\xc3\xa9', 'Adriatic', 'has', 'a', '5', 'star', 'rating', '.', 'Prices', 'start', 'at', '\xc2\xa3', '30', '.']
+
                 fields = get_e2e_fields(srcline.strip().split()) # fieldname -> tokens
+
+                # fields: defaultdict(<type 'list'>, {'eatType': ['pub'], 'near': ['Caf\xc3\xa9', 'Adriatic'], 'priceRange': ['more', 'than', '\xc2\xa3', '30'], 'name': ['The', 'Vaults'], 'customerrating': ['5', 'out', 'of', '5']})
+
                 labels = stupid_search(senttokes, fields)
                 labels = [(str(tup[0]), str(tup[1]), str(tup[2])) for tup in labels]
 
                 # add eos stuff
                 senttokes.append("<eos>")
-                labels.append((str(len(senttokes)-1), str(len(senttokes)), '8')) # label doesn't matter
 
+                labels.append((str(len(senttokes)-1), str(len(senttokes)), '8')) # label doesn't matter
                 labelstr = " ".join([','.join(label) for label in labels])
                 sentstr = " ".join(senttokes)
 
                 outline = "%s|||%s" % (sentstr, labelstr)
+
                 print outline
 
 

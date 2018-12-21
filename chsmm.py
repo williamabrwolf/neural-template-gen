@@ -119,7 +119,6 @@ class HSMM(nn.Module):
             self.cond_trans_lin = nn.Linear(opt.emb_size, opt.K*opt.Kmul*opt.cond_A_dim*2)
         self.init_weights()
 
-
     def init_weights(self):
         """
         (re)init weights
@@ -160,7 +159,6 @@ class HSMM(nn.Module):
             lin.weight.data.uniform_(-initrange, initrange)
             if lin.bias is not None:
                 lin.bias.data.zero_()
-
 
     def trans_logprobs(self, uniqenc, seqlen):
         """
@@ -208,7 +206,6 @@ class HSMM(nn.Module):
             lplist.append(self.lsm(len_scores.narrow(1, 0, l)).t())
         return lplist, len_scores
 
-
     def to_seg_embs(self, xemb):
         """
         xemb - bsz x seqlen x emb_size
@@ -228,7 +225,6 @@ class HSMM(nn.Module):
         # L+1 x bsz x seqlen x emb_size -> L+1 x bsz*seqlen x emb_size
         return torch.stack(newx).view(self.L+1, -1, emb_size)
 
-
     def to_seg_hist(self, states):
         """
         states - bsz x seqlen+1 x rnn_size
@@ -247,7 +243,6 @@ class HSMM(nn.Module):
             newh.append(rowi)
         # L+1 x bsz x seqlen x rnn_size -> L+1 x bsz*seqlen x rnn_size
         return torch.stack(newh).view(self.L+1, -1, rnn_size)
-
 
     def obs_logprobs(self, x, srcenc, srcfieldenc, fieldmask, combotargs, bsz):
         """
@@ -381,7 +376,6 @@ class HSMM(nn.Module):
             obslps = obslps.repeat(1, 1, 1, self.Kmul)
         return obslps
 
-
     def encode(self, src, avgmask, uniqfields):
         """
         args:
@@ -475,8 +469,7 @@ class HSMM(nn.Module):
             else: # should really have zeroed out before, but this is easier
                 wrd_dist[:, nout_wrds + i].zero_()
 
-    def temp_bs(self, corpus, ss, start_inp, exh0, exc0, srcfieldenc,
-                     len_lps, row2tblent, row2feats, K, final_state=False):
+    def temp_bs(self, corpus, ss, start_inp, exh0, exc0, srcfieldenc, len_lps, row2tblent, row2feats, K, final_state=False):
         """
         ss - discrete state index
         exh0 - layers x 1 x rnn_size
@@ -576,7 +569,6 @@ class HSMM(nn.Module):
 
         return best_hyp, best_wscore, best_lscore
 
-
     def gen_one(self, templt, h0, c0, srcfieldenc, len_lps, row2tblent, row2feats):
         """
         src - 1 x nfields x nfeatures
@@ -619,9 +611,7 @@ class HSMM(nn.Module):
 
         return phrases, tote_wscore, tote_lscore, tokes, segs
 
-
-    def temp_ar_bs(self, templt, row2tblent, row2feats, h0, c0, srcfieldenc, len_lps,  K,
-                corpus):
+    def temp_ar_bs(self, templt, row2tblent, row2feats, h0, c0, srcfieldenc, len_lps,  K, corpus):
         assert self.unif_lenps # ignoring lenps
         exh0 = h0.view(1, 1, self.hid_size).expand(self.layers, 1, self.hid_size)
         exc0 = c0.view(1, 1, self.hid_size).expand(self.layers, 1, self.hid_size)
@@ -768,7 +758,6 @@ class HSMM(nn.Module):
                 # we already have the state for the next word b/c we put it thru to also predict eop
                 thid, (thc, tcc) = torch.cat(thidlst, 1), (torch.cat(thclst, 1), torch.cat(tcclst, 1))
 
-
     def gen_one_ar(self, templt, h0, c0, srcfieldenc, len_lps, row2tblent, row2feats):
         """
         src - 1 x nfields x nfeatures
@@ -808,6 +797,7 @@ class HSMM(nn.Module):
             tokes += len(phrs)
 
         return phrases, wscore, tokes
+
 
 def make_combo_targs(locs, x, L, nfields, ngen_types):
     """
@@ -858,6 +848,7 @@ def make_masks(src, pad_idx, max_pool=False):
         avgmask.div_(avgmask.sum(1, True).expand(bsz, nfields))
     fieldmask = fieldmask.float() * neginf # 0 where not all pad and -1e38 elsewhere
     return fieldmask, avgmask
+
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-data', type=str, default='', help='path to data dir')
@@ -935,7 +926,7 @@ parser.add_argument('-onmt_decay', action='store_true', help='')
 parser.add_argument('-clip', type=float, default=5, help='gradient clipping')
 # TODO: ?
 parser.add_argument('-interactive', action='store_true', help='')
-# TODO: ?
+# NOTE: Run template-extraction step
 parser.add_argument('-label_train', action='store_true', help='')
 # NOTE: generate from file
 parser.add_argument('-gen_from_fi', type=str, default='', help='')
@@ -957,7 +948,8 @@ parser.add_argument('-gen_wts', type=str, default='1,1', help='')
 parser.add_argument('-min_gen_tokes', type=int, default=0, help='')
 # TODO: minimum states to generate? do we actually generate states?
 parser.add_argument('-min_gen_states', type=int, default=0, help='')
-# TODO: generate on validation set?
+# NOTE: generate natural language outputs on the validation set
+# NOTE: seems like this is used during training...
 parser.add_argument('-gen_on_valid', action='store_true', help='')
 # TODO: ?
 parser.add_argument('-align', action='store_true', help='')
@@ -1137,6 +1129,19 @@ if __name__ == "__main__":
         net.ar = saved_args.ar_after_decay and not args.no_ar_for_vit
         print "btw, net.ar:", net.ar
         for i in xrange(len(corpus.train)):
+            """
+            See here for what's in the batch:
+
+            https://github.com/williamabrwolf/neural-template-gen/blob/b6450a8b3331408cbe0243a577672da72de35fe1/labeled_data.py#L780
+
+            x: global numerical indices of words in the natural output
+            _: span annotations
+            src: features of the structured input
+            locs: metadata re: was each word in the output "copied" from the values in the input
+            inps: metadata re: each item in the output, where the words that were
+                "copied" have richer data, and the ones that were not have something
+                closer to "sentinel"/default data
+            """
             x, _, src, locs, inps = corpus.train[i]
             fwd_cidxs = None
 
@@ -1175,6 +1180,18 @@ if __name__ == "__main__":
                 for (start, end, label) in seqs[b]:
                     print "%s|%d" % (" ".join(words[start:end]), label),
                 print
+
+                """
+                `seqs` contains one segmentation for every observation in the batch.
+
+                [(0L, 1L, 126), (1L, 2L, 198), (2L, 3L, 58), (3L, 4L, 135), (4L, 5L, 76), (5L, 6L, 267)],
+
+                where each tuple contains: start index, end index, numerical label (for the latent state z).
+
+                Printed, a given segmentation might look like:
+
+                Highly rated|126 restaurant|198 <unk>|135 <eos>|76
+                """
 
     def gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=None):
         net.ar = saved_args.ar_after_decay
@@ -1323,13 +1340,27 @@ if __name__ == "__main__":
                     gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=src_line)
         else:
             for ll, src_line in enumerate(src_lines):
+                """
+                I'm almost positive that this is an intermediary step to computing
+                `src` feats, i.e. features for the structured input, used during
+                generation.
+                """
                 if "wiki" in args.data:
                     src_tbl = get_wikibio_poswrds(src_line.strip().split())
                 else:
                     src_tbl = get_e2e_poswrds(src_line.strip().split())
 
-                gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=src_line)
+                """
+                Generate one output for each input.
 
+                Generate from top 100 templates, selecting the (output, template_i)
+                (where `i in [0, 100)`) with the best "score."
+
+                At a first pass, this code is too crazy to figure out what this "score"
+                is.
+                """
+
+                gen_from_srctbl(src_tbl, top_temps, coeffs, src_line=src_line)
 
     def align_stuff():
         from template_extraction import extract_from_tagged_data
